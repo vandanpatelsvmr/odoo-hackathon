@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
+const path = require("path"); // Added path
 require("dotenv").config();
 
 const { initDatabase } = require("./config/database");
@@ -14,7 +15,6 @@ const invoiceRoutes = require("./routes/invoiceRoutes");
 const logRoutes = require("./routes/logRoutes");
 
 const app = express();
-const path = require("path");
 
 // Middleware
 app.use(cors());
@@ -23,6 +23,10 @@ app.use(morgan("dev"));
 
 // Static Files (Serve Frontend)
 app.use(express.static(path.join(__dirname, "../")));
+
+// Static Files (Serve Uploaded Profile Pictures)
+// This line allows images in public/uploads to be accessed via /uploads/filename.jpg
+app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 
 // Routes
 app.use("/api/auth", authRoutes);

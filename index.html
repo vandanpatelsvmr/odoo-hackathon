@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VendorBridge - Procurement & Vendor Management ERP</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .user-profile {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 6px 12px;
+      background: var(--bg-secondary);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      position: relative;
+      cursor: pointer;
+    }
+
+    .profile-dropdown {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      width: 150px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: var(--shadow-lg);
+      margin-top: 8px;
+      display: none;
+      z-index: 1000;
+      padding: 8px;
+    }
+
+    .profile-dropdown.active {
+      display: block;
+    }
+
+    .logout-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: none;
+      border: none;
+      color: var(--danger);
+      font-weight: 500;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: background 0.2s;
+    }
+
+    .logout-btn:hover {
+      background: rgba(239, 68, 68, 0.1);
+    }
+
+    /* Global Loader */
+    .global-loader {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      color: white;
+      backdrop-filter: blur(2px);
+    }
+
+    .global-loader.active {
+      display: flex;
+    }
+
+    .loader-spinner {
+      width: 50px;
+      height: 50px;
+      border: 5px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: var(--accent);
+      animation: spin 1s ease-in-out infinite;
+      margin-bottom: 15px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loader-text {
+      font-weight: 600;
+      letter-spacing: 1px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- App Shell -->
+  <div id="app-shell" style="display: none;">
+    <!-- Sidebar Navigation -->
+    <aside id="sidebar">
+      <div class="sidebar-logo">
+        <div class="logo-text">
+          VendorBridge <span class="logo-dot"></span>
+        </div>
+      </div>
+      <ul class="sidebar-menu">
+        <li>
+          <a class="menu-item active" data-view="dashboard">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2v-4zM14 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2v-4z" />
+            </svg>
+            Dashboard
+          </a>
+        </li>
+        <li>
+          <a class="menu-item" data-view="vendors">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            Vendors
+          </a>
+        </li>
+        <li>
+          <a class="menu-item" data-view="rfqs">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+            </svg>
+            RFQs
+          </a>
+        </li>
+        <li>
+          <a class="menu-item" data-view="quotations">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Quotations
+          </a>
+        </li>
+        <li>
+          <a class="menu-item" data-view="approvals">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Approvals
+          </a>
+        </li>
+        <li>
+          <a class="menu-item" data-view="po-invoices">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            PO & Invoices
+          </a>
+        </li>
+        <li>
+          <a class="menu-item" data-view="reports">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+            </svg>
+            Reports
+          </a>
+        </li>
+        <li>
+          <a class="menu-item" data-view="activity-logs">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Activity Logs
+          </a>
+        </li>
+      </ul>
+      <div class="sidebar-footer">
+        <p>VendorBridge ERP v1.0</p>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main id="main-area">
+      <!-- Top Header -->
+      <header id="header">
+        <div class="header-search">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input type="text" id="global-search" placeholder="Search procurement records...">
+        </div>
+
+        <div class="header-actions">
+          <!-- Role Switcher -->
+          <div class="role-switcher-container">
+            <span class="role-switcher-label">Role:</span>
+            <select class="role-switcher" id="role-select">
+              <option value="officer">Procurement Officer</option>
+              <option value="vendor">Vendor (Supplier)</option>
+              <option value="manager">Approver (Manager)</option>
+              <option value="admin">System Admin</option>
+            </select>
+          </div>
+
+          <!-- Notification Dropdown Toggle -->
+          <button class="notification-btn" id="notif-toggle">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 20px; height: 20px;">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+            <span class="notification-badge" id="notif-badge" style="display: none;"></span>
+          </button>
+
+          <!-- User Profile Widget -->
+          <div class="user-profile" id="user-profile-widget">
+            <div class="user-avatar" id="avatar-letter">RS</div>
+            <div class="user-details">
+              <span class="user-name" id="profile-name">Rohan Sharma</span>
+              <span class="user-role-badge" id="profile-role">Procurement Officer</span>
+            </div>
+            <div class="profile-dropdown" id="profile-dropdown">
+              <button id="logout-btn" class="logout-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:16px; height:16px;">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Main Injectable Screen Container -->
+      <section id="main-content">
+        <!-- Rendered SPA views injected here -->
+      </section>
+    </main>
+  </div>
+
+  <!-- Auth Wrapper (Login Screen) -->
+  <div id="auth-wrapper" class="auth-wrapper">
+    <div class="auth-container">
+      <div class="auth-logo">
+        VendorBridge <span style="color:var(--accent);">ERP</span>
+      </div>
+      <div class="auth-tabs">
+        <div class="auth-tab active" id="tab-login" onclick="switchTab('login')">Login</div>
+        <div class="auth-tab" id="tab-signup" onclick="switchTab('signup')">Register</div>
+      </div>
+
+      <!-- Login Form -->
+      <form id="login-form">
+    <div style="text-align: center; margin-bottom: 20px;">
+        <label for="login-photo-input" style="cursor: pointer;">
+            <div id="login-avatar" style="width: 80px; height: 80px; border-radius: 50%; border: 2px dashed #4ade80; display: flex; align-items: center; justify-content: center; margin: 0 auto; background: #1e293b; color: #94a3b8; overflow: hidden;">
+                <span id="login-photo-text">Photo</span>
+                <img id="login-preview-img" src="" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+            </div>
+        </label>
+        <input type="file" id="login-photo-input" name="login_avatar" accept="image/*" style="display:none;">
+    </div>
+
+    <div class="form-group" style="text-align: left;">
+        <label for="login-email">Email Address</label>
+        <input type="email" id="login-email" class="form-control" placeholder="name@company.com" required>
+    </div>
+    <div class="form-group" style="text-align: left;">
+        <label for="login-password">Password</label>
+        <input type="password" id="login-password" class="form-control" placeholder="........" required>
+    </div>
+    <button type="submit" class="btn btn-primary" style="text-align: center;">Sign In</button>
+</form>
+
+<form id="signup-form" style="display: none; padding: 20px;" enctype="multipart/form-data">
+    <div style="text-align: center; margin-bottom: 20px;">
+        <label for="profile-pic-input" style="cursor: pointer;">
+            <div id="avatar-circle" style="width: 80px; height: 80px; border-radius: 50%; border: 2px dashed #4ade80; display: flex; align-items: center; justify-content: center; margin: 0 auto; background: #1e293b; color: #94a3b8; overflow: hidden;">
+                <span id="photo-text">Photo</span>
+                <img id="preview-img" src="" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+            </div>
+        </label>
+        <input type="file" id="profile-pic-input" name="profile_picture" accept="image/*" style="display:none;">
+    </div>
+
+    <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+        <input type="text" name="first_name" placeholder="First Name" class="form-control" required>
+        <input type="text" name="last_name" placeholder="Last Name" class="form-control" required>
+    </div>
+    <input type="email" name="email" placeholder="Email Address" class="form-control" style="margin-bottom: 8px;" required>
+    <input type="tel" name="phone" placeholder="Phone Number" class="form-control" style="margin-bottom: 8px;" required>
+    
+    <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+        <select name="role" class="form-control">
+            <option value="procurement_officer">Procurement Officer</option>
+            <option value="vendor">Vendor</option>
+            <option value="manager">Approver</option>
+        </select>
+        <input type="text" name="country" placeholder="Country" class="form-control">
+    </div>
+    
+    <textarea name="additional_info" placeholder="Additional Information..." class="form-control" style="height: 60px; margin-bottom: 8px;"></textarea>
+    <input type="password" name="password" placeholder="Min. 8 characters" class="form-control" style="margin-bottom: 15px;" required>
+    
+    <button type="submit" id="register-submit-btn" class="btn btn-primary" style="width: 100%; padding: 10px;">Register</button>
+</form>
+      
+      
+
+      <!-- Quick Login buttons -->
+      <div class="quick-login-grid">
+        <button class="quick-login-btn" data-email="officer@vendorbridge.com">
+          <div class="quick-login-title">Officer</div>
+          <div class="quick-login-email">Rohan Sharma</div>
+        </button>
+        <button class="quick-login-btn" data-email="vendor1@supplier.com">
+          <div class="quick-login-title">Vendor</div>
+          <div class="quick-login-email">EcoSupplies</div>
+        </button>
+        <button class="quick-login-btn" data-email="manager@vendorbridge.com">
+          <div class="quick-login-title">Manager</div>
+          <div class="quick-login-email">Ananya Iyer</div>
+        </button>
+        <button class="quick-login-btn" data-email="admin@vendorbridge.com">
+          <div class="quick-login-title">Admin</div>
+          <div class="quick-login-email">Vikram Malhotra</div>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dynamic Notification Toasts -->
+  <div id="toast-container"></div>
+
+  <!-- Global Loader -->
+  <div id="global-loader" class="global-loader">
+    <div class="loader-spinner"></div>
+    <div class="loader-text">Processing...</div>
+  </div>
+
+  <!-- General Modal Overlay (Used for Email Simulation, PDF details, etc.) -->
+  <div id="modal-overlay" class="modal-overlay">
+    <div class="modal-box" id="modal-box">
+      <button class="modal-close-btn" id="modal-close">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 18px; height: 18px;">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+      <h3 class="modal-title" id="modal-title">Modal Header</h3>
+      <div id="modal-content">
+        <!-- Content gets dynamic injection -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Script Declarations -->
+  <script src="seed-data.js"></script>
+  <script src="api.js"></script>
+  <script src="app.js"></script>
+
+  
+</body>
+</html>

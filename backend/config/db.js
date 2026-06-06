@@ -27,9 +27,5 @@ const db = mysql.createConnection({
     database: process.env.DB_NAME
 });
 
-<<<<<<< HEAD
-module.exports = db;
-=======
 module.exports = db;
 
->>>>>>> 372a214b20627d441e80b08edc6c116e9140c889

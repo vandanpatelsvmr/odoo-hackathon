@@ -3,7 +3,7 @@ const { hashPassword } = require("./utils/auth");
 
 const SEED_DATA = {
   users: [
-    { email: "officer@vendorbridge.com", password: "password", role: "officer", name: "Rohan Sharma", title: "Procurement Officer" },
+    { email: "officer@vendorbridge.com", password: "password", role: "procurement_officer", name: "Rohan Sharma", title: "Procurement Officer" },
     { email: "manager@vendorbridge.com", password: "password", role: "manager", name: "Ananya Iyer", title: "Finance Manager" },
     { email: "admin@vendorbridge.com", password: "password", role: "admin", name: "Vikram Malhotra", title: "System Administrator" },
     { email: "vendor1@supplier.com", password: "password", role: "vendor", name: "Suresh Gupta", title: "EcoSupplies Ltd" },
@@ -198,19 +198,40 @@ const SEED_DATA = {
 
 const seed = async () => {
   try {
+    // We'll use a transaction for safety if possible, or just truncate tables
+    console.log("Resetting database...");
+    
+    // Disable foreign key checks for truncation
+    await db.promise().query("SET FOREIGN_KEY_CHECKS = 0");
+    
+    const tables = [
+      "invoice_items", "invoices", 
+      "po_items", "purchase_orders", 
+      "approvals", 
+      "quotation_items", "quotations", 
+      "rfq_items", "rfq_assigned_vendors", "rfqs", 
+      "vendors", "users", "activity_logs"
+    ];
+
+    for (const table of tables) {
+      await db.promise().query(`TRUNCATE TABLE ${table}`);
+    }
+
+    await db.promise().query("SET FOREIGN_KEY_CHECKS = 1");
+
     console.log("Seeding users...");
     for (const user of SEED_DATA.users) {
-      const hashedPass = hashPassword(user.password);
+      const hashedPassword = hashPassword(user.password);
       await db.promise().query(
-        "INSERT IGNORE INTO users (email, password, role, name, title) VALUES (?, ?, ?, ?, ?)",
-        [user.email, hashedPass, user.role, user.name, user.title]
+        "INSERT INTO users (email, password, role, name, title) VALUES (?, ?, ?, ?, ?)",
+        [user.email, hashedPassword, user.role, user.name, user.title]
       );
     }
 
     console.log("Seeding vendors...");
     for (const vendor of SEED_DATA.vendors) {
       await db.promise().query(
-        "INSERT IGNORE INTO vendors (id, name, category, email, contact, address, gst, rating, status, country) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO vendors (id, name, category, email, contact, address, gst, rating, status, country) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         [vendor.id, vendor.name, vendor.category, vendor.email, vendor.contact, vendor.address, vendor.gst, vendor.rating, vendor.status, vendor.country]
       );
     }
@@ -218,17 +239,17 @@ const seed = async () => {
     console.log("Seeding RFQs...");
     for (const rfq of SEED_DATA.rfqs) {
       await db.promise().query(
-        "INSERT IGNORE INTO rfqs (id, title, description, date_created, deadline, status) VALUES (?, ?, ?, ?, ?, ?)",
+        "INSERT INTO rfqs (id, title, description, date_created, deadline, status) VALUES (?, ?, ?, ?, ?, ?)",
         [rfq.id, rfq.title, rfq.description, rfq.dateCreated, rfq.deadline, rfq.status]
       );
-      
+
       for (const item of rfq.items) {
         await db.promise().query(
           "INSERT INTO rfq_items (rfq_id, item_name, quantity, unit, target_price) VALUES (?, ?, ?, ?, ?)",
           [rfq.id, item.name, item.qty, item.unit, item.targetPrice]
         );
       }
-      
+
       for (const vendorId of rfq.assignedVendors) {
         await db.promise().query(
           "INSERT INTO rfq_assigned_vendors (rfq_id, vendor_id) VALUES (?, ?)",
@@ -240,10 +261,10 @@ const seed = async () => {
     console.log("Seeding quotations...");
     for (const quote of SEED_DATA.quotations) {
       await db.promise().query(
-        "INSERT IGNORE INTO quotations (id, rfq_id, vendor_id, vendor_name, delivery_days, subtotal, gst, total, notes, status, date_submitted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO quotations (id, rfq_id, vendor_id, vendor_name, delivery_days, subtotal, gst, total, notes, status, date_submitted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         [quote.id, quote.rfqId, quote.vendorId, quote.vendorName, quote.deliveryDays, quote.subtotal, quote.gst, quote.total, quote.notes, quote.status, quote.dateSubmitted]
       );
-      
+
       for (const item of quote.items) {
         await db.promise().query(
           "INSERT INTO quotation_items (quotation_id, item_name, quantity, price) VALUES (?, ?, ?, ?)",
@@ -255,7 +276,7 @@ const seed = async () => {
     console.log("Seeding approvals...");
     for (const appr of SEED_DATA.approvals) {
       await db.promise().query(
-        "INSERT IGNORE INTO approvals (id, rfq_id, rfq_title, quotation_id, vendor_name, amount, status, requested_by, approved_by, date_requested, date_approved, remarks) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO approvals (id, rfq_id, rfq_title, quotation_id, vendor_name, amount, status, requested_by, approved_by, date_requested, date_approved, remarks) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         [appr.id, appr.rfqId, appr.rfqTitle, appr.quotationId, appr.vendorName, appr.amount, appr.status, appr.requestedBy, appr.approvedBy, appr.dateRequested, appr.dateApproved, appr.remarks]
       );
     }
@@ -263,7 +284,7 @@ const seed = async () => {
     console.log("Seeding purchase orders...");
     for (const po of SEED_DATA.purchaseOrders) {
       await db.promise().query(
-        "INSERT IGNORE INTO purchase_orders (id, approval_id, rfq_id, quotation_id, vendor_id, vendor_name, date_generated, status, subtotal, gst, total) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO purchase_orders (id, approval_id, rfq_id, quotation_id, vendor_id, vendor_name, date_generated, status, subtotal, gst, total) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         [po.id, po.approvalId, po.rfqId, po.quotationId, po.vendorId, po.vendorName, po.dateGenerated, po.status, po.subtotal, po.gst, po.total]
       );
       
@@ -278,7 +299,7 @@ const seed = async () => {
     console.log("Seeding invoices...");
     for (const inv of SEED_DATA.invoices) {
       await db.promise().query(
-        "INSERT IGNORE INTO invoices (id, po_id, vendor_id, vendor_name, date_generated, due_date, status, subtotal, gst, total, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO invoices (id, po_id, vendor_id, vendor_name, date_generated, due_date, status, subtotal, gst, total, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         [inv.id, inv.poId, inv.vendorId, inv.vendorName, inv.dateGenerated, inv.dueDate, inv.status, inv.subtotal, inv.gst, inv.total, inv.notes]
       );
       
@@ -293,17 +314,24 @@ const seed = async () => {
     console.log("Seeding activity logs...");
     for (const log of SEED_DATA.activityLogs) {
       await db.promise().query(
-        "INSERT IGNORE INTO activity_logs (id, type, user, action, timestamp) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO activity_logs (id, type, user, action, timestamp) VALUES (?, ?, ?, ?, ?)",
         [log.id, log.type, log.user, log.action, log.timestamp]
       );
     }
 
     console.log("Seeding completed successfully!");
-    process.exit(0);
+    return true;
   } catch (err) {
     console.error("Seeding failed:", err);
-    process.exit(1);
+    throw err;
   }
 };
 
-seed();
+// Check if run directly
+if (require.main === module) {
+  seed()
+    .then(() => process.exit(0))
+    .catch(() => process.exit(1));
+}
+
+module.exports = { seed };

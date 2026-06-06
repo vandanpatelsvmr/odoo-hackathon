@@ -244,12 +244,18 @@
         VendorBridge <span style="color:var(--accent);">ERP</span>
       </div>
       <div class="auth-tabs">
+<<<<<<< HEAD
         <div class="auth-tab active" id="tab-login" onclick="switchTab('login')">Login</div>
         <div class="auth-tab" id="tab-signup" onclick="switchTab('signup')">Register</div>
+=======
+        <div class="auth-tab active" id="tab-login">Login</div>
+        <div class="auth-tab" id="tab-signup">Register</div>
+>>>>>>> 372a214b20627d441e80b08edc6c116e9140c889
       </div>
 
       <!-- Login Form -->
       <form id="login-form">
+<<<<<<< HEAD
     <div style="text-align: center; margin-bottom: 20px;">
         <label for="login-photo-input" style="cursor: pointer;">
             <div id="login-avatar" style="width: 80px; height: 80px; border-radius: 50%; border: 2px dashed #4ade80; display: flex; align-items: center; justify-content: center; margin: 0 auto; background: #1e293b; color: #94a3b8; overflow: hidden;">
@@ -305,6 +311,46 @@
 </form>
       
       
+=======
+        <div class="form-group">
+          <label for="login-email">Email Address</label>
+          <input type="email" id="login-email" class="form-control" placeholder="name@company.com" required>
+        </div>
+        <div class="form-group">
+          <label for="login-password">Password</label>
+          <input type="password" id="login-password" class="form-control" placeholder="••••••••" required>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+          <a href="#" style="color: var(--accent); font-size: 0.8rem; text-decoration: none;" id="forgot-password-link">Forgot password?</a>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 12px;">Sign In</button>
+      </form>
+
+      <!-- Signup Form -->
+      <form id="signup-form" style="display: none;">
+        <div class="form-group">
+          <label for="signup-name">Full Name</label>
+          <input type="text" id="signup-name" class="form-control" placeholder="Jane Doe" required>
+        </div>
+        <div class="form-group">
+          <label for="signup-email">Email Address</label>
+          <input type="email" id="signup-email" class="form-control" placeholder="name@company.com" required>
+        </div>
+        <div class="form-group">
+          <label for="signup-role">Request Account Role</label>
+          <select id="signup-role" class="form-control">
+            <option value="procurement_officer">Procurement Officer</option>
+            <option value="vendor">Vendor (Supplier)</option>
+            <option value="manager">Approver (Manager)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="signup-password">Create Password</label>
+          <input type="password" id="signup-password" class="form-control" placeholder="Min. 8 characters" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 12px;">Create Account</button>
+      </form>
+>>>>>>> 372a214b20627d441e80b08edc6c116e9140c889
 
       <!-- Quick Login buttons -->
       <div class="quick-login-grid">
@@ -356,7 +402,12 @@
   <script src="seed-data.js"></script>
   <script src="api.js"></script>
   <script src="app.js"></script>
+<<<<<<< HEAD
 
   
 </body>
 </html>
+=======
+</body>
+</html>
+>>>>>>> 372a214b20627d441e80b08edc6c116e9140c889

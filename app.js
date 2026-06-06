@@ -2,51 +2,45 @@
 
 class VendorBridgeERP {
   constructor() {
-    this.db = {};
+    this.db = {
+      users: [],
+      vendors: [],
+      rfqs: [],
+      quotations: [],
+      approvals: [],
+      purchaseOrders: [],
+      invoices: [],
+      activityLogs: []
+    };
     this.currentUser = null;
     this.currentView = "dashboard";
     this.notifications = [];
     
     // Bindings
-    this.initDatabase();
     this.initSession();
     this.initEventListeners();
-    this.render();
   }
 
-  // 1. Database Initialization
+  // 1. Database Initialization (Now handled by Backend)
   initDatabase() {
-    const savedDb = localStorage.getItem("vendorbridge_db");
-    if (savedDb) {
-      try {
-        this.db = JSON.parse(savedDb);
-      } catch (e) {
-        console.error("Error reading database, re-seeding...", e);
-        this.seedDatabase();
-      }
-    } else {
-      this.seedDatabase();
-    }
-  }
-
-  seedDatabase() {
-    this.db = { ...SEED_DATA };
-    this.saveDatabase();
+    // No-op for API version
   }
 
   saveDatabase() {
-    localStorage.setItem("vendorbridge_db", JSON.stringify(this.db));
+    // No-op for API version
   }
 
   // 2. Session & Auth Management
-  initSession() {
-    const session = sessionStorage.getItem("vendorbridge_session");
-    if (session) {
+  async initSession() {
+    const token = localStorage.getItem("vendorbridge_token");
+    if (token) {
       try {
-        const email = session;
-        this.currentUser = this.db.users.find(u => u.email === email) || null;
+        const response = await ApiService.request("/auth/profile");
+        this.currentUser = response.user;
       } catch (e) {
+        console.error("Session initialization failed", e);
         this.currentUser = null;
+        localStorage.removeItem("vendorbridge_token");
       }
     }
     
@@ -69,6 +63,7 @@ class VendorBridgeERP {
       
       // Sync navigation items based on role policies
       this.syncNavigation();
+      this.navigate("dashboard");
     } else {
       appShell.style.display = "none";
       authWrapper.style.display = "flex";
@@ -123,17 +118,11 @@ class VendorBridgeERP {
     });
 
     // Role Switcher Event
-    document.getElementById("role-select").addEventListener("change", (e) => {
+    document.getElementById("role-select").addEventListener("change", async (e) => {
       const newRole = e.target.value;
-      const matchedUser = this.db.users.find(u => u.role === newRole);
-      
-      if (matchedUser) {
-        this.currentUser = matchedUser;
-        sessionStorage.setItem("vendorbridge_session", matchedUser.email);
-        this.initSession();
-        this.showToast(`Switched workspace role to: ${matchedUser.title}`, "info");
-        this.navigate("dashboard");
-      }
+      // In a real app, we might need to switch account or re-authenticate
+      // For this hackathon, we'll just show a message
+      this.showToast(`Role switching is currently simulation-only. Please login with a ${newRole} account.`, "info");
     });
 
     // Auth Form Tabs Switcher
@@ -148,13 +137,23 @@ class VendorBridgeERP {
     document.querySelectorAll(".quick-login-btn").forEach(btn => {
       btn.addEventListener("click", () => {
         const email = btn.getAttribute("data-email");
-        const user = this.db.users.find(u => u.email === email);
-        if (user) {
-          document.getElementById("login-email").value = user.email;
-          document.getElementById("login-password").value = "password";
-          this.handleLoginDirect(user.email, "password");
-        }
+        document.getElementById("login-email").value = email;
+        document.getElementById("login-password").value = "password";
+        this.handleLoginDirect(email, "password");
       });
+    });
+
+    // Logout function
+    document.getElementById("logout-btn").addEventListener("click", () => this.handleLogout());
+    
+    // Profile widget toggle
+    document.getElementById("user-profile-widget").addEventListener("click", (e) => {
+      e.stopPropagation();
+      document.getElementById("profile-dropdown").classList.toggle("active");
+    });
+
+    document.addEventListener("click", () => {
+      document.getElementById("profile-dropdown").classList.remove("active");
     });
 
     // Close Modal Button
@@ -175,7 +174,7 @@ class VendorBridgeERP {
   }
 
   // Navigation Logic
-  navigate(view, params = {}) {
+  async navigate(view, params = {}) {
     this.currentView = view;
     // Clear search box on view transitions
     document.getElementById("global-search").value = "";
@@ -189,13 +188,40 @@ class VendorBridgeERP {
       }
     });
     
-    this.render(params);
+    await this.render(params);
   }
 
   // 4. View Render Routing Manager
-  render(params = {}) {
+  async render(params = {}) {
     if (!this.currentUser) return;
     
+    this.setLoading(true, "Fetching data...");
+    // Fetch fresh data before rendering
+    try {
+      const [vendors, rfqs, quotations, approvals, pos, invoices, logs] = await Promise.all([
+        ApiService.getVendors(),
+        ApiService.getRFQs(),
+        ApiService.getQuotations(),
+        ApiService.getApprovals(),
+        ApiService.getPurchaseOrders(),
+        ApiService.getInvoices(),
+        ApiService.getLogs()
+      ]);
+
+      this.db.vendors = vendors.vendors;
+      this.db.rfqs = rfqs.rfqs;
+      this.db.quotations = quotations.quotations;
+      this.db.approvals = approvals.approvals;
+      this.db.purchaseOrders = pos.purchaseOrders;
+      this.db.invoices = invoices.invoices;
+      this.db.activityLogs = logs.logs;
+    } catch (e) {
+      console.error("Data fetch failed", e);
+      this.showToast("Failed to fetch fresh data from server.", "danger");
+    } finally {
+      this.setLoading(false);
+    }
+
     const container = document.getElementById("main-content");
     container.innerHTML = ""; // Clear existing elements
 
@@ -250,7 +276,7 @@ class VendorBridgeERP {
           <p class="page-subtitle">Welcome back, ${this.currentUser.name}. Monitor procurement pipelines and pending operations.</p>
         </div>
         <div style="display:flex; gap:10px;">
-          ${role === 'officer' ? `<button class="btn btn-primary" id="dash-create-rfq-btn">
+          ${role === "procurement_officer" ? `<button class="btn btn-primary" id="dash-create-rfq-btn">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
             Create RFQ
           </button>` : ''}
@@ -350,7 +376,7 @@ class VendorBridgeERP {
           </div>
           <div style="flex-grow:1; max-height: 280px; overflow-y: auto; padding-right:5px;">
             <div class="timeline-feed">
-              ${this.db.activityLogs.slice(-5).reverse().map(log => {
+              ${this.db.activityLogs.slice(0, 5).map(log => {
                 let timelineClass = "";
                 if (log.type === "system") timelineClass = "system";
                 if (log.type === "approval") timelineClass = "approval";
@@ -403,7 +429,7 @@ class VendorBridgeERP {
           <h1>Vendor Registry</h1>
           <p class="page-subtitle">Add, manage, and audit onboarding credentials of corporate suppliers.</p>
         </div>
-        ${role === 'admin' || role === 'officer' ? `<button class="btn btn-primary" id="add-vendor-btn">Onboard New Vendor</button>` : ''}
+        ${role === 'admin' || role === "procurement_officer" ? `<button class="btn btn-primary" id="add-vendor-btn">Onboard New Vendor</button>` : ''}
       </div>
 
       <!-- Filters Panel -->
@@ -519,7 +545,7 @@ class VendorBridgeERP {
   renderRFQs(container, params = {}) {
     const role = this.currentUser.role;
     
-    if (params.action === "create" && role === "officer") {
+    if (params.action === "create" && role === "procurement_officer") {
       this.renderRFQCreationForm(container);
       return;
     }
@@ -530,7 +556,7 @@ class VendorBridgeERP {
           <h1>Requests for Quotation (RFQs)</h1>
           <p class="page-subtitle">Create and distribute product specs to onboarded vendors for quotation bidding.</p>
         </div>
-        ${role === 'officer' ? `<button class="btn btn-primary" id="open-create-rfq-btn">Initiate RFQ Workflow</button>` : ''}
+        ${role === "procurement_officer" ? `<button class="btn btn-primary" id="open-create-rfq-btn">Initiate RFQ Workflow</button>` : ''}
       </div>
 
       <div class="panel">
@@ -570,7 +596,7 @@ class VendorBridgeERP {
                     <td>
                       <div style="display:flex; gap:6px;">
                         <button class="btn btn-secondary btn-sm rfq-details-action" data-id="${rfq.id}">Details</button>
-                        ${role === 'officer' && rfq.status === 'Bidding Open' ? 
+                        ${role === "procurement_officer" && rfq.status === 'Bidding Open' ? 
                           `<button class="btn btn-primary btn-sm compare-bids-btn" data-id="${rfq.id}">Compare Bids</button>` : ''
                         }
                       </div>
@@ -738,7 +764,7 @@ class VendorBridgeERP {
     updateVendors(); // Initial call
 
     // Submit form logic
-    document.getElementById("create-rfq-form").addEventListener("submit", (e) => {
+    document.getElementById("create-rfq-form").addEventListener("submit", async (e) => {
       e.preventDefault();
       
       const title = document.getElementById("rfq-title").value;
@@ -762,36 +788,17 @@ class VendorBridgeERP {
         items.push({ name, qty, unit, targetPrice });
       });
 
-      // Generate Auto RFQ Number
-      const lastRfq = this.db.rfqs[this.db.rfqs.length - 1];
-      const nextNum = lastRfq ? parseInt(lastRfq.id.split("-")[2], 10) + 1 : 1;
-      const rfqId = `RFQ-2026-${String(nextNum).padStart(3, "0")}`;
+      try {
+        const response = await ApiService.createRFQ({
+          title, description, deadline, items, assignedVendors: checkedVendors
+        });
 
-      const newRFQ = {
-        id: rfqId,
-        title,
-        description,
-        dateCreated: new Date().toISOString().split("T")[0],
-        deadline,
-        status: "Bidding Open",
-        items,
-        assignedVendors: checkedVendors
-      };
-
-      this.db.rfqs.push(newRFQ);
-      this.saveDatabase();
-      this.logActivity("rfq", `Created ${rfqId}: ${title}`);
-      
-      // Auto trigger simulated notifications for the assigned vendors
-      checkedVendors.forEach(vid => {
-        const v = this.db.vendors.find(vend => vend.id === vid);
-        if (v) {
-          this.logActivity("system", `Sent RFQ Invitation alert to supplier: ${v.name}`);
-        }
-      });
-
-      this.showToast(`Published ${rfqId} successfully!`, "success");
-      this.navigate("rfqs");
+        this.logActivity("rfq", `Created ${response.rfqId}: ${title}`);
+        this.showToast(`Published ${response.rfqId} successfully!`, "success");
+        await this.navigate("rfqs");
+      } catch (e) {
+        this.showToast(e.message, "danger");
+      }
     });
   }
 
@@ -1088,7 +1095,7 @@ class VendorBridgeERP {
     // Form buttons bindings
     document.getElementById("quote-discard").addEventListener("click", () => this.closeModal());
     
-    document.getElementById("submit-quote-form").addEventListener("submit", (e) => {
+    document.getElementById("submit-quote-form").addEventListener("submit", async (e) => {
       e.preventDefault();
       
       const deliveryDays = parseInt(document.getElementById("quote-delivery").value, 10);
@@ -1096,63 +1103,32 @@ class VendorBridgeERP {
       
       // Lines
       const items = [];
-      let subtotal = 0;
       modalContent.querySelectorAll(".quote-item-row").forEach(row => {
         const name = row.getAttribute("data-name");
         const qty = parseInt(row.getAttribute("data-qty"), 10);
         const price = parseFloat(row.querySelector(".quote-item-price").value);
-        subtotal += price * qty;
         items.push({ name, qty, price });
       });
 
-      const gst = subtotal * 0.18;
-      const total = subtotal + gst;
-      
-      const vendorRecord = this.db.vendors.find(v => v.id === vendorId);
+      try {
+        if (existingQuote) {
+          await ApiService.request(`/quotations/${existingQuote.id}`, {
+            method: "PUT",
+            body: JSON.stringify({ items, deliveryDays, notes })
+          });
+          this.showToast(`Updated quote estimate: ${existingQuote.id}`, "success");
+        } else {
+          const response = await ApiService.createQuotation({
+            rfqId, vendorId, vendorName: vendorRecord.name, items, deliveryDays, notes
+          });
+          this.showToast(`New bid submitted! ID: ${response.quotationId}`, "success");
+        }
 
-      if (existingQuote) {
-        // Edit existing
-        existingQuote.items = items;
-        existingQuote.deliveryDays = deliveryDays;
-        existingQuote.subtotal = subtotal;
-        existingQuote.gst = gst;
-        existingQuote.total = total;
-        existingQuote.notes = notes;
-        existingQuote.dateSubmitted = new Date().toISOString().split("T")[0];
-        
-        this.logActivity("quotation", `${vendorRecord.name} updated quote ${existingQuote.id} for ${rfqId}`);
-        this.showToast(`Updated quote estimate: ${existingQuote.id}`, "success");
-      } else {
-        // Create new
-        const nextNum = this.db.quotations.length + 1;
-        const qId = `QT-2026-${String(nextNum).padStart(3, "0")}`;
-
-        const newQuote = {
-          id: qId,
-          rfqId,
-          vendorId,
-          vendorName: vendorRecord.name,
-          items,
-          deliveryDays,
-          subtotal,
-          gst,
-          total,
-          notes,
-          status: "Submitted",
-          dateSubmitted: new Date().toISOString().split("T")[0]
-        };
-
-        this.db.quotations.push(newQuote);
-        
-        this.logActivity("quotation", `${vendorRecord.name} submitted quote ${qId} for ${rfqId}`);
-        
-        // Push in-system toast notifications for the Procurement Officer
-        this.showToast(`New bid submitted by ${vendorRecord.name}!`, "success");
+        this.closeModal();
+        await this.render();
+      } catch (e) {
+        this.showToast(e.message, "danger");
       }
-
-      this.saveDatabase();
-      this.closeModal();
-      this.render();
     });
   }
 
@@ -1242,7 +1218,7 @@ class VendorBridgeERP {
                 ${q.notes}
               </div>
 
-              ${this.currentUser.role === 'officer' && rfq.status === 'Bidding Open' ? 
+              ${this.currentUser.role === "procurement_officer" && rfq.status === 'Bidding Open' ? 
                 `<button class="btn btn-primary select-quote-approval-btn" style="width:100%; justify-content:center;" data-qid="${q.id}">
                   Select for Approval
                 </button>` : ''
@@ -1263,45 +1239,41 @@ class VendorBridgeERP {
     });
   }
 
-  initiateApprovalWorkflow(quoteId) {
+  async initiateApprovalWorkflow(quoteId) {
     const quote = this.db.quotations.find(q => q.id === quoteId);
     const rfq = this.db.rfqs.find(r => r.id === quote.rfqId);
 
-    // Create a workflow approval record
-    const nextNum = this.db.approvals.length + 1;
-    const apprId = `APP-2026-${String(nextNum).padStart(3, "0")}`;
+    try {
+      // 1. Update RFQ status to Under Review
+      await ApiService.request(`/rfqs/${rfq.id}`, {
+        method: "PUT",
+        body: JSON.stringify({ status: "Under Review" })
+      });
 
-    const newApproval = {
-      id: apprId,
-      rfqId: rfq.id,
-      rfqTitle: rfq.title,
-      quotationId: quoteId,
-      vendorName: quote.vendorName,
-      amount: quote.total,
-      status: "Pending",
-      requestedBy: this.currentUser.name,
-      approvedBy: "-",
-      dateRequested: new Date().toISOString().split("T")[0],
-      dateApproved: "-",
-      remarks: "",
-      history: [
-        { status: "Pending Review", user: this.currentUser.name, date: new Date().toISOString().split("T")[0], remarks: "RFQ closing complete. Initiating manager review." }
-      ]
-    };
+      // 2. Update Quotation status to Under Review
+      await ApiService.request(`/quotations/${quote.id}`, {
+        method: "PUT",
+        body: JSON.stringify({ status: "Under Review" })
+      });
 
-    // Update RFQ status
-    rfq.status = "Under Review";
-    quote.status = "Under Review";
+      // 3. Create Approval Record
+      const response = await ApiService.createApproval({
+        rfqId: rfq.id,
+        rfqTitle: rfq.title,
+        quotationId: quoteId,
+        vendorName: quote.vendorName,
+        amount: quote.total,
+        requestedBy: this.currentUser.name
+      });
 
-    this.db.approvals.push(newApproval);
-    this.saveDatabase();
-
-    this.logActivity("approval", `Requested procurement approval ${apprId} for quote ${quoteId} ($${quote.total.toLocaleString()})`);
-    
-    this.showToast(`Submitted approval request ${apprId}`, "success");
-    
-    // Automatically redirect to workflow screen
-    this.navigate("approvals", { id: apprId });
+      this.logActivity("approval", `Requested procurement approval ${response.approvalId} for quote ${quoteId} ($${quote.total.toLocaleString()})`);
+      this.showToast(`Submitted approval request ${response.approvalId}`, "success");
+      
+      // Automatically redirect to workflow screen
+      await this.navigate("approvals", { id: response.approvalId });
+    } catch (e) {
+      this.showToast(e.message, "danger");
+    }
   }
 
   // ================== SCREEN 7: APPROVAL WORKFLOW ==================
@@ -1550,85 +1522,76 @@ class VendorBridgeERP {
     }
   }
 
-  processApprovalDecision(approvalId, decision, remarks) {
-    const appr = this.db.approvals.find(a => a.id === approvalId);
-    const quote = this.db.quotations.find(q => q.id === appr.quotationId);
-    const rfq = this.db.rfqs.find(r => r.id === appr.rfqId);
+  async processApprovalDecision(approvalId, decision, remarks) {
+    try {
+      const appr = this.db.approvals.find(a => a.id === approvalId);
+      const quote = this.db.quotations.find(q => q.id === appr.quotationId);
+      const rfq = this.db.rfqs.find(r => r.id === appr.rfqId);
 
-    appr.status = decision;
-    appr.approvedBy = this.currentUser.name;
-    appr.dateApproved = new Date().toISOString().split("T")[0];
-    appr.remarks = remarks;
+      await ApiService.updateApproval(approvalId, {
+        status: decision,
+        approvedBy: this.currentUser.name,
+        remarks
+      });
 
-    // Record history
-    appr.history.push({
-      status: decision,
-      user: this.currentUser.name,
-      date: new Date().toISOString().split("T")[0],
-      remarks
-    });
+      if (decision === "Approved") {
+        // 1. Update RFQ and quote status via API
+        await ApiService.request(`/rfqs/${rfq.id}`, {
+          method: "PUT",
+          body: JSON.stringify({ status: "Approved" })
+        });
 
-    if (decision === "Approved") {
-      // 1. Update RFQ and quote status
-      rfq.status = "Approved";
-      quote.status = "Approved";
+        await ApiService.request(`/quotations/${quote.id}`, {
+          method: "PUT",
+          body: JSON.stringify({ status: "Approved" })
+        });
 
-      // 2. Auto Generate Purchase Order (Screen 8)
-      const lastPo = this.db.purchaseOrders[this.db.purchaseOrders.length - 1];
-      const nextPoNum = lastPo ? parseInt(lastPo.id.split("-")[2], 10) + 1 : 1;
-      const poId = `PO-2026-${String(nextPoNum).padStart(3, "0")}`;
+        // 2. Generate Purchase Order via API
+        const poResponse = await ApiService.createPurchaseOrder({
+          approvalId: appr.id,
+          rfqId: rfq.id,
+          quotationId: quote.id,
+          vendorId: quote.vendorId,
+          vendorName: quote.vendorName,
+          items: quote.items,
+          subtotal: quote.subtotal,
+          gst: quote.gst,
+          total: quote.total
+        });
+        
+        this.logActivity("po", `Automatically generated ${poResponse.poId} linked to approved budget ${appr.id}`);
 
-      const newPO = {
-        id: poId,
-        approvalId: appr.id,
-        rfqId: rfq.id,
-        quotationId: quote.id,
-        vendorId: quote.vendorId,
-        vendorName: quote.vendorName,
-        dateGenerated: new Date().toISOString().split("T")[0],
-        status: "Completed",
-        items: quote.items,
-        subtotal: quote.subtotal,
-        gst: quote.gst,
-        total: quote.total
-      };
-      
-      this.db.purchaseOrders.push(newPO);
-      this.logActivity("po", `Automatically generated ${poId} linked to approved budget ${appr.id}`);
+        // 3. Generate Invoice via API
+        const invResponse = await ApiService.createInvoice({
+          poId: poResponse.poId,
+          vendorId: quote.vendorId,
+          vendorName: quote.vendorName,
+          items: quote.items,
+          subtotal: quote.subtotal,
+          gst: quote.gst,
+          total: quote.total,
+          notes: "Awaiting review and disbursement from accounts payable."
+        });
+        this.logActivity("invoice", `Automatically generated billing invoice ${invResponse.invoiceId} for PO ${poResponse.poId}`);
 
-      // 3. Auto Generate Invoice (Screen 8)
-      const lastInv = this.db.invoices[this.db.invoices.length - 1];
-      const nextInvNum = lastInv ? parseInt(lastInv.id.split("-")[2], 10) + 1 : 1;
-      const invId = `INV-2026-${String(nextInvNum).padStart(3, "0")}`;
+        this.showToast(`Approved! PO and Invoice auto-generated.`, "success");
+      } else {
+        // Rejected
+        await ApiService.request(`/rfqs/${rfq.id}`, {
+          method: "PUT",
+          body: JSON.stringify({ status: "Bidding Open" })
+        });
+        await ApiService.request(`/quotations/${quote.id}`, {
+          method: "PUT",
+          body: JSON.stringify({ status: "Rejected" })
+        });
+        this.showToast(`Procurement request rejected.`, "warning");
+      }
 
-      const newInvoice = {
-        id: invId,
-        poId: poId,
-        vendorId: quote.vendorId,
-        vendorName: quote.vendorName,
-        dateGenerated: new Date().toISOString().split("T")[0],
-        dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0], // Net 30
-        status: "Pending Payment",
-        items: quote.items,
-        subtotal: quote.subtotal,
-        gst: quote.gst,
-        total: quote.total,
-        notes: "Awaiting review and disbursement from accounts payable."
-      };
-
-      this.db.invoices.push(newInvoice);
-      this.logActivity("invoice", `Automatically generated billing invoice ${invId} for PO ${poId}`);
-
-      this.showToast(`Approved! PO and Invoice auto-generated.`, "success");
-    } else {
-      // Rejected
-      rfq.status = "Bidding Open"; // Re-open or cancel
-      quote.status = "Rejected";
-      this.showToast(`Procurement request rejected.`, "warning");
+      await this.navigate("approvals", { id: approvalId });
+    } catch (e) {
+      this.showToast(e.message, "danger");
     }
-
-    this.saveDatabase();
-    this.navigate("approvals", { id: approvalId });
   }
 
   // ================== SCREEN 8: PURCHASE ORDER & INVOICE GENERATION ==================
@@ -1739,16 +1702,20 @@ class VendorBridgeERP {
     });
 
     document.querySelectorAll(".pay-invoice-btn").forEach(btn => {
-      btn.addEventListener("click", (e) => {
+      btn.addEventListener("click", async (e) => {
         const id = e.target.getAttribute("data-id");
         const inv = this.db.invoices.find(i => i.id === id);
         if (inv) {
-          inv.status = "Paid";
-          inv.notes = `Payment cleared via Online Banking. Receipt #TXN-${Math.floor(10000000 + Math.random() * 90000000)}.`;
-          this.saveDatabase();
-          this.logActivity("invoice", `Disbursed funds for Invoice ${inv.id} ($${inv.total.toLocaleString()})`);
-          this.showToast(`Invoice ${inv.id} successfully Paid!`, "success");
-          this.render();
+          try {
+            const notes = `Payment cleared via Online Banking. Receipt #TXN-${Math.floor(10000000 + Math.random() * 90000000)}.`;
+            await ApiService.payInvoice(id, notes);
+            
+            this.logActivity("invoice", `Disbursed funds for Invoice ${inv.id} ($${inv.total.toLocaleString()})`);
+            this.showToast(`Invoice ${inv.id} successfully Paid!`, "success");
+            await this.render();
+          } catch (e) {
+            this.showToast(e.message, "danger");
+          }
         }
       });
     });
@@ -2371,7 +2338,7 @@ class VendorBridgeERP {
 
     document.getElementById("reg-vendor-close").addEventListener("click", () => this.closeModal());
     
-    document.getElementById("onboard-vendor-form").addEventListener("submit", (e) => {
+    document.getElementById("onboard-vendor-form").addEventListener("submit", async (e) => {
       e.preventDefault();
       
       const name = document.getElementById("reg-vendor-name").value;
@@ -2381,40 +2348,19 @@ class VendorBridgeERP {
       const contact = document.getElementById("reg-vendor-phone").value;
       const address = document.getElementById("reg-vendor-addr").value;
       
-      // Auto ID
-      const nextId = name.toLowerCase().replace(/\s+/g, "-");
-      
-      const newVendor = {
-        id: nextId,
-        name,
-        category,
-        email,
-        contact,
-        address,
-        gst,
-        rating: 4.0,
-        status: "Active",
-        country: "India"
-      };
+      try {
+        await ApiService.createVendor({
+          name, category, email, contact, address, gst, rating: 4.0, status: "Active", country: "India"
+        });
 
-      this.db.vendors.push(newVendor);
-
-      // Create a simulated User account for this vendor so they can switch roles and bid
-      const newVendorUser = {
-        email,
-        password: "password",
-        role: "vendor",
-        name: `${name} Rep`,
-        title: `${name}`
-      };
-      this.db.users.push(newVendorUser);
-      
-      this.saveDatabase();
-      this.logActivity("system", `Onboarded new supplier vendor ${name} and generated authentication profile.`);
-      this.showToast(`Vendor ${name} onboarded successfully!`, "success");
-      
-      this.closeModal();
-      this.render();
+        this.logActivity("system", `Onboarded new supplier vendor ${name}`);
+        this.showToast(`Vendor ${name} onboarded successfully!`, "success");
+        
+        this.closeModal();
+        await this.render();
+      } catch (e) {
+        this.showToast(e.message, "danger");
+      }
     });
   }
 
@@ -2498,17 +2444,31 @@ class VendorBridgeERP {
     document.getElementById("modal-overlay").classList.remove("active");
   }
 
-  logActivity(type, action) {
-    const nextId = this.db.activityLogs.length + 1;
-    const newLog = {
-      id: nextId,
-      type,
-      user: this.currentUser ? this.currentUser.name : "System",
-      action,
-      timestamp: new Date().toISOString()
-    };
-    this.db.activityLogs.push(newLog);
-    this.saveDatabase();
+  setLoading(isLoading, text = "Processing...") {
+    const loader = document.getElementById("global-loader");
+    if (loader) {
+      if (isLoading) {
+        loader.querySelector(".loader-text").textContent = text;
+        loader.classList.add("active");
+      } else {
+        loader.classList.remove("active");
+      }
+    }
+  }
+
+  async logActivity(type, action) {
+    try {
+      await ApiService.createLog({ type, action });
+    } catch (e) {
+      console.error("Failed to log activity", e);
+    }
+  }
+
+  handleLogout() {
+    localStorage.removeItem("vendorbridge_token");
+    this.currentUser = null;
+    this.initSession();
+    this.showToast("Logged out safely.", "info");
   }
 
   showToast(message, type = "success") {
@@ -2562,17 +2522,19 @@ class VendorBridgeERP {
     document.getElementById("login-form").style.display = "none";
   }
 
-  handleLoginDirect(email, password) {
-    const user = this.db.users.find(u => u.email === email && u.password === password);
-    if (user) {
-      this.currentUser = user;
-      sessionStorage.setItem("vendorbridge_session", user.email);
-      this.initSession();
-      this.showToast(`Logged in successfully as ${user.name}!`, "success");
-      this.navigate("dashboard");
+  async handleLoginDirect(email, password) {
+    this.setLoading(true, "Authenticating...");
+    try {
+      const response = await ApiService.login(email, password);
+      localStorage.setItem("vendorbridge_token", response.token);
+      this.currentUser = response.user;
+      await this.initSession();
+      this.showToast(`Logged in successfully as ${this.currentUser.name}!`, "success");
       this.logActivity("system", "User logged in");
-    } else {
-      this.showToast("Invalid credentials, try again.", "danger");
+    } catch (e) {
+      this.showToast(e.message, "danger");
+    } finally {
+      this.setLoading(false);
     }
   }
 
@@ -2583,31 +2545,27 @@ class VendorBridgeERP {
     this.handleLoginDirect(email, pass);
   }
 
-  handleSignup(e) {
+  async handleSignup(e) {
     e.preventDefault();
+    this.setLoading(true, "Creating account...");
     const name = document.getElementById("signup-name").value;
     const email = document.getElementById("signup-email").value;
     const role = document.getElementById("signup-role").value;
-    const pass = document.getElementById("signup-password").value;
+    const password = document.getElementById("signup-password").value;
 
-    // Check duplicate
-    const exists = this.db.users.some(u => u.email === email);
-    if (exists) {
-      this.showToast("This email has already been registered.", "danger");
-      return;
+    const names = name.split(" ");
+    const first_name = names[0];
+    const last_name = names.slice(1).join(" ") || "";
+
+    try {
+      await ApiService.register({ first_name, last_name, email, password, role });
+      this.showToast("Account created successfully! Please login.", "success");
+      this.showLoginTab();
+    } catch (e) {
+      this.showToast(e.message, "danger");
+    } finally {
+      this.setLoading(false);
     }
-
-    let title = "User";
-    if (role === "officer") title = "Procurement Officer";
-    if (role === "vendor") title = "Supplier Representative";
-    if (role === "manager") title = "Workflow Approver";
-
-    const newUser = { email, password: pass, role, name, title };
-    this.db.users.push(newUser);
-    this.saveDatabase();
-    
-    this.showToast("Account created successfully! Logging you in...", "success");
-    this.handleLoginDirect(email, pass);
   }
 }
 

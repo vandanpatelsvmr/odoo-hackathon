@@ -6,15 +6,8 @@ exports.register = async (req, res) => {
   try {
     const { first_name, last_name, email, password, role } = req.body;
 
-    // Role mapping for database
-    const roleMap = {
-      officer: "procurement_officer",
-      vendor: "vendor",
-      manager: "manager",
-      admin: "admin",
-    };
-
-    const dbRole = roleMap[role] || role;
+    // No role mapping needed, use direct role from request
+    const dbRole = role;
 
     // Validate required fields
     if (!first_name || !email || !password || !role) {
@@ -128,10 +121,6 @@ exports.login = async (req, res) => {
 
       const user = results[0];
 
-      if (user.role === "procurement_officer") {
-        user.role = "officer";
-      }
-
       // Compare password
       const isPasswordValid = require("bcryptjs").compareSync(password, user.password);
 
@@ -146,7 +135,12 @@ exports.login = async (req, res) => {
       const jwt = require("jsonwebtoken");
       const JWT_SECRET = process.env.JWT_SECRET || "vendorbridge_secret_key_2026";
       const token = jwt.sign(
-        { id: user.id, email: user.email, role: user.role },
+        {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          name: user.name
+        },
         JWT_SECRET,
         { expiresIn: "7d" }
       );
@@ -205,6 +199,45 @@ exports.getProfile = async (req, res) => {
   }
 };
 
+// Update user role
+exports.updateRole = async (req, res) => {
+  try {
+    const { role } = req.body;
+    const userId = req.user.id;
+
+    if (!role) {
+      return res.status(400).json({
+        success: false,
+        message: "Role is required",
+      });
+    }
+
+    const sql = "UPDATE users SET role = ?, title = ? WHERE id = ?";
+    const title = getRoleTitle(role);
+
+    db.query(sql, [role, title, userId], (err, result) => {
+      if (err) {
+        return res.status(500).json({
+          success: false,
+          message: err.message,
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        message: "Role updated successfully",
+        role,
+        title
+      });
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 // Helper function to get role title
 function getRoleTitle(role) {
   const titles = {
@@ -213,6 +246,6 @@ function getRoleTitle(role) {
     manager: "Workflow Approver",
     admin: "System Administrator",
   };
-  
+
   return titles[role] || "User";
 }

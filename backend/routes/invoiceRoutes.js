@@ -6,7 +6,10 @@ const { protect } = require("../utils/auth");
 // Get all Invoices
 router.get("/", protect, (req, res) => {
   const sql = `
-    SELECT * FROM invoices 
+    SELECT id, po_id as poId, vendor_id as vendorId, vendor_name as vendorName, 
+           date_generated as dateGenerated, due_date as dueDate, status, 
+           subtotal, gst, total, notes 
+    FROM invoices 
     ORDER BY date_generated DESC
   `;
   
@@ -29,7 +32,12 @@ router.get("/", protect, (req, res) => {
 router.get("/:id", protect, (req, res) => {
   const { id } = req.params;
   
-  const sql = "SELECT * FROM invoices WHERE id = ?";
+  const sql = `
+    SELECT id, po_id as poId, vendor_id as vendorId, vendor_name as vendorName, 
+           date_generated as dateGenerated, due_date as dueDate, status, 
+           subtotal, gst, total, notes 
+    FROM invoices WHERE id = ?
+  `;
   db.query(sql, [id], (err, results) => {
     if (err) {
       return res.status(500).json({
@@ -48,7 +56,7 @@ router.get("/:id", protect, (req, res) => {
     const invoice = results[0];
     
     // Get invoice items
-    const itemsSql = "SELECT * FROM invoice_items WHERE invoice_id = ?";
+    const itemsSql = "SELECT item_name as name, quantity as qty, price FROM invoice_items WHERE invoice_id = ?";
     db.query(itemsSql, [id], (err, items) => {
       if (err) {
         return res.status(500).json({

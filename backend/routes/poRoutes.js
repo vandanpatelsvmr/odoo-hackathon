@@ -6,8 +6,10 @@ const { protect } = require("../utils/auth");
 // Get all Purchase Orders
 router.get("/", protect, (req, res) => {
   const sql = `
-    SELECT po.*, 
-           v.name as vendor_name
+    SELECT po.id, po.approval_id as approvalId, po.rfq_id as rfqId, 
+           po.quotation_id as quotationId, po.vendor_id as vendorId, 
+           v.name as vendorName, po.date_generated as dateGenerated, 
+           po.status, po.subtotal, po.gst, po.total
     FROM purchase_orders po
     JOIN vendors v ON po.vendor_id = v.id
     ORDER BY po.date_generated DESC
@@ -32,7 +34,13 @@ router.get("/", protect, (req, res) => {
 router.get("/:id", protect, (req, res) => {
   const { id } = req.params;
   
-  const sql = "SELECT * FROM purchase_orders WHERE id = ?";
+  const sql = `
+    SELECT id, approval_id as approvalId, rfq_id as rfqId, 
+           quotation_id as quotationId, vendor_id as vendorId, 
+           vendor_name as vendorName, date_generated as dateGenerated, 
+           status, subtotal, gst, total 
+    FROM purchase_orders WHERE id = ?
+  `;
   db.query(sql, [id], (err, results) => {
     if (err) {
       return res.status(500).json({
@@ -51,7 +59,7 @@ router.get("/:id", protect, (req, res) => {
     const po = results[0];
     
     // Get PO items
-    const itemsSql = "SELECT * FROM po_items WHERE po_id = ?";
+    const itemsSql = "SELECT item_name as name, quantity as qty, price FROM po_items WHERE po_id = ?";
     db.query(itemsSql, [id], (err, items) => {
       if (err) {
         return res.status(500).json({

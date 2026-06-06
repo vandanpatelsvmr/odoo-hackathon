@@ -12,6 +12,7 @@ const approvalRoutes = require("./routes/approvalRoutes");
 const poRoutes = require("./routes/poRoutes");
 const invoiceRoutes = require("./routes/invoiceRoutes");
 const logRoutes = require("./routes/logRoutes");
+const { seed } = require("./seed");
 
 const app = express();
 const path = require("path");
@@ -33,6 +34,15 @@ app.use("/api/approvals", approvalRoutes);
 app.use("/api/purchase-orders", poRoutes);
 app.use("/api/invoices", invoiceRoutes);
 app.use("/api/logs", logRoutes);
+
+app.post("/api/seed", async (req, res) => {
+  try {
+    await seed();
+    res.status(200).json({ success: true, message: "Database re-seeded successfully" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
 
 // Global Error Handler
 app.use((err, req, res, next) => {

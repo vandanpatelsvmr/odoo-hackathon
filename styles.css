@@ -41,32 +41,71 @@ body {
   width: 6px;
   height: 6px;
 }
+
 ::-webkit-scrollbar-track {
   background: var(--bg-primary);
 }
+
 ::-webkit-scrollbar-thumb {
   background: #334155;
   border-radius: 4px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: var(--accent);
 }
 
 /* Animations */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes slideInRight {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
+  from {
+    transform: translateX(100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
 }
 
 @keyframes pulseGlow {
-  0%, 100% { box-shadow: 0 0 10px rgba(16, 185, 129, 0.2); }
-  50% { box-shadow: 0 0 20px rgba(16, 185, 129, 0.4); }
+
+  0%,
+  100% {
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+  }
+
+  50% {
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+  }
 }
+
+select {
+  background: #172033;
+  color: #fff;
+  border: 1px solid #2dd4bf;
+}
+
+select option {
+  background: #172033;
+  color: #fff;
+}
+
+select:focus {
+  outline: none;
+  border-color: #2dd4bf;
+}
+
 
 /* App Shell Layout */
 #app-shell {
@@ -568,10 +607,25 @@ body {
   font-weight: 600;
 }
 
-.badge-success { background-color: rgba(16, 185, 129, 0.15); color: #34d399; }
-.badge-pending { background-color: rgba(245, 158, 11, 0.15); color: #fbbf24; }
-.badge-danger { background-color: rgba(239, 68, 68, 0.15); color: #f87171; }
-.badge-info { background-color: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+.badge-success {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+}
+
+.badge-pending {
+  background-color: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+}
+
+.badge-danger {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}
+
+.badge-info {
+  background-color: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+}
 
 /* SVG Graph */
 .graph-container {
@@ -616,7 +670,7 @@ body {
   border-radius: 4px 4px 0 0;
   transition: height 0.8s ease, filter 0.2s;
   cursor: pointer;
-  min-height: 4px;
+  min-height: 50px;
 }
 
 .graph-bar:hover {
@@ -882,7 +936,7 @@ textarea.form-control {
   max-width: 800px;
   margin: 0 auto;
   font-family: 'Inter', sans-serif;
-  border: 1px solid rgba(0,0,0,0.05);
+  border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .invoice-header {
@@ -1187,7 +1241,7 @@ textarea.form-control {
   border-radius: 0 8px 8px 0;
   padding: 16px 20px;
   color: var(--text-main);
-  box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   gap: 12px;
@@ -1197,9 +1251,17 @@ textarea.form-control {
   transition: opacity 0.3s, transform 0.3s;
 }
 
-.toast.toast-warning { border-left-color: var(--warning); }
-.toast.toast-danger { border-left-color: var(--danger); }
-.toast.toast-info { border-left-color: #3b82f6; }
+.toast.toast-warning {
+  border-left-color: var(--warning);
+}
+
+.toast.toast-danger {
+  border-left-color: var(--danger);
+}
+
+.toast.toast-info {
+  border-left-color: #3b82f6;
+}
 
 .toast-message {
   font-size: 0.85rem;
@@ -1247,9 +1309,17 @@ textarea.form-control {
   z-index: 2;
 }
 
-.timeline-item.system .timeline-marker { border-color: var(--text-muted); }
-.timeline-item.approval .timeline-marker { border-color: var(--warning); }
-.timeline-item.po .timeline-marker { border-color: #3b82f6; }
+.timeline-item.system .timeline-marker {
+  border-color: var(--text-muted);
+}
+
+.timeline-item.approval .timeline-marker {
+  border-color: var(--warning);
+}
+
+.timeline-item.po .timeline-marker {
+  border-color: #3b82f6;
+}
 
 .timeline-content {
   font-size: 0.9rem;
@@ -1267,19 +1337,28 @@ textarea.form-control {
     background-color: #ffffff !important;
     color: #000000 !important;
   }
-  
-  #sidebar, #header, .sidebar-logo, .sidebar-footer, .header-actions, .header-search, .btn, .modal-close-btn, .page-title-area {
+
+  #sidebar,
+  #header,
+  .sidebar-logo,
+  .sidebar-footer,
+  .header-actions,
+  .header-search,
+  .btn,
+  .modal-close-btn,
+  .page-title-area {
     display: none !important;
   }
-  
-  #main-area, #main-content {
+
+  #main-area,
+  #main-content {
     height: auto !important;
     width: 100% !important;
     overflow: visible !important;
     padding: 0 !important;
     margin: 0 !important;
   }
-  
+
   .panel {
     background: none !important;
     border: none !important;
@@ -1287,7 +1366,7 @@ textarea.form-control {
     padding: 0 !important;
     margin: 0 !important;
   }
-  
+
   .invoice-sheet {
     box-shadow: none !important;
     border: none !important;

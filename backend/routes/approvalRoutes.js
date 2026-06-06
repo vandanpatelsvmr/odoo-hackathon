@@ -6,7 +6,11 @@ const { protect } = require("../utils/auth");
 // Get all approvals
 router.get("/", protect, (req, res) => {
   const sql = `
-    SELECT * FROM approvals 
+    SELECT id, rfq_id as rfqId, rfq_title as rfqTitle, quotation_id as quotationId, 
+           vendor_name as vendorName, amount, status, requested_by as requestedBy, 
+           approved_by as approvedBy, date_requested as dateRequested, 
+           date_approved as dateApproved, remarks 
+    FROM approvals 
     ORDER BY date_requested DESC
   `;
   
@@ -29,7 +33,13 @@ router.get("/", protect, (req, res) => {
 router.get("/:id", protect, (req, res) => {
   const { id } = req.params;
   
-  const sql = "SELECT * FROM approvals WHERE id = ?";
+  const sql = `
+    SELECT id, rfq_id as rfqId, rfq_title as rfqTitle, quotation_id as quotationId, 
+           vendor_name as vendorName, amount, status, requested_by as requestedBy, 
+           approved_by as approvedBy, date_requested as dateRequested, 
+           date_approved as dateApproved, remarks 
+    FROM approvals WHERE id = ?
+  `;
   db.query(sql, [id], (err, results) => {
     if (err) {
       return res.status(500).json({

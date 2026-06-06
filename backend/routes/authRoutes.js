@@ -49,6 +49,10 @@ const upload = multer({ storage: storage });
 router.post("/register", upload.single('profile_picture'), authController.register);
 router.post("/login", authController.login);
 router.get("/profile", protect, authController.getProfile);
+<<<<<<< HEAD
 >>>>>>> 372a214b20627d441e80b08edc6c116e9140c889
+=======
+router.put("/role", protect, authController.updateRole);
+>>>>>>> d3fa2d776dc62135a946b5fec1a43d4494a25785
 
 module.exports = router;

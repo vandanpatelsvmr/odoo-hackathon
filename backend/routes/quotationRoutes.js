@@ -8,9 +8,11 @@ router.get("/", protect, (req, res) => {
   const { rfqId } = req.query;
   
   let sql = `
-    SELECT quotations.*, 
-           v.name as vendor_name,
-           v.rating as vendor_rating
+    SELECT quotations.id, quotations.rfq_id as rfqId, quotations.vendor_id as vendorId, 
+           v.name as vendorName, v.rating as vendorRating,
+           quotations.delivery_days as deliveryDays, quotations.subtotal, quotations.gst, 
+           quotations.total, quotations.notes, quotations.status, 
+           quotations.date_submitted as dateSubmitted
     FROM quotations
     JOIN vendors v ON quotations.vendor_id = v.id
   `;
@@ -28,11 +30,32 @@ router.get("/", protect, (req, res) => {
         error: err.message,
       });
     }
-    
-    res.status(200).json({
-      success: true,
-      quotations: results,
+
+    // For each quotation, we need to fetch the items to match frontend expectation
+    const quotePromises = results.map(q => {
+      return new Promise((resolve, reject) => {
+        const itemsSql = "SELECT item_name as name, quantity as qty, price FROM quotation_items WHERE quotation_id = ?";
+        db.query(itemsSql, [q.id], (iErr, iResults) => {
+          if (iErr) reject(iErr);
+          q.items = iResults;
+          resolve(q);
+        });
+      });
     });
+
+    Promise.all(quotePromises)
+      .then(quotesWithItems => {
+        res.status(200).json({
+          success: true,
+          quotations: quotesWithItems,
+        });
+      })
+      .catch(pErr => {
+        res.status(500).json({
+          success: false,
+          error: pErr.message,
+        });
+      });
   });
 });
 
@@ -40,7 +63,12 @@ router.get("/", protect, (req, res) => {
 router.get("/:id", protect, (req, res) => {
   const { id } = req.params;
   
-  const sql = "SELECT * FROM quotations WHERE id = ?";
+  const sql = `
+    SELECT id, rfq_id as rfqId, vendor_id as vendorId, vendor_name as vendorName, 
+           delivery_days as deliveryDays, subtotal, gst, total, notes, status, 
+           date_submitted as dateSubmitted 
+    FROM quotations WHERE id = ?
+  `;
   db.query(sql, [id], (err, results) => {
     if (err) {
       return res.status(500).json({
@@ -59,7 +87,7 @@ router.get("/:id", protect, (req, res) => {
     const quotation = results[0];
     
     // Get quotation items
-    const itemsSql = "SELECT * FROM quotation_items WHERE quotation_id = ?";
+    const itemsSql = "SELECT item_name as name, quantity as qty, price FROM quotation_items WHERE quotation_id = ?";
     db.query(itemsSql, [id], (err, items) => {
       if (err) {
         return res.status(500).json({

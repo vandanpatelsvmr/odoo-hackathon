@@ -20,7 +20,7 @@ async function runTests() {
         last_name: "User",
         email: `test_${Date.now()}@example.com`,
         password: "Password123",
-        role: "officer"
+        role: "procurement_officer"
       })
     });
     const regData = await regRes.json();

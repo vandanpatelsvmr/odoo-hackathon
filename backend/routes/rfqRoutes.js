@@ -6,13 +6,14 @@ const { protect } = require("../utils/auth");
 // Get all RFQs
 router.get("/", protect, (req, res) => {
   const sql = `
-    SELECT rfqs.*, 
+    SELECT rfqs.id, rfqs.title, rfqs.description, rfqs.date_created as dateCreated, 
+           rfqs.deadline, rfqs.status, rfqs.created_by as createdBy,
            COUNT(DISTINCT rfq_items.id) as items_count,
            COUNT(DISTINCT rfq_assigned_vendors.id) as vendors_count,
            COUNT(DISTINCT quotations.id) as bids_count
     FROM rfqs
     LEFT JOIN rfq_items ON rfqs.id = rfq_items.rfq_id
-    LEFT JOIN rfq_assigned_vendors ON rfqs.id = rfq_items.rfq_id
+    LEFT JOIN rfq_assigned_vendors ON rfqs.id = rfq_assigned_vendors.rfq_id
     LEFT JOIN quotations ON rfqs.id = quotations.rfq_id
     GROUP BY rfqs.id
     ORDER BY rfqs.date_created DESC
@@ -26,10 +27,32 @@ router.get("/", protect, (req, res) => {
       });
     }
     
-    res.status(200).json({
-      success: true,
-      rfqs: results,
+    // For each RFQ, we need to fetch the assigned vendors list to match frontend expectation
+    // This is slightly inefficient but ensures compatibility without massive frontend refactoring
+    const rfqPromises = results.map(rfq => {
+      return new Promise((resolve, reject) => {
+        const vendorsSql = "SELECT vendor_id FROM rfq_assigned_vendors WHERE rfq_id = ?";
+        db.query(vendorsSql, [rfq.id], (vErr, vResults) => {
+          if (vErr) reject(vErr);
+          rfq.assignedVendors = vResults.map(v => v.vendor_id);
+          resolve(rfq);
+        });
+      });
     });
+
+    Promise.all(rfqPromises)
+      .then(rfqsWithVendors => {
+        res.status(200).json({
+          success: true,
+          rfqs: rfqsWithVendors,
+        });
+      })
+      .catch(pErr => {
+        res.status(500).json({
+          success: false,
+          error: pErr.message,
+        });
+      });
   });
 });
 
@@ -38,7 +61,7 @@ router.get("/:id", protect, (req, res) => {
   const { id } = req.params;
   
   // Get RFQ details
-  const rfqSql = "SELECT * FROM rfqs WHERE id = ?";
+  const rfqSql = "SELECT id, title, description, date_created as dateCreated, deadline, status, created_by as createdBy FROM rfqs WHERE id = ?";
   db.query(rfqSql, [id], (err, results) => {
     if (err) {
       return res.status(500).json({
@@ -57,7 +80,7 @@ router.get("/:id", protect, (req, res) => {
     const rfq = results[0];
     
     // Get RFQ items
-    const itemsSql = "SELECT * FROM rfq_items WHERE rfq_id = ?";
+    const itemsSql = "SELECT item_name as name, quantity as qty, unit, target_price as targetPrice FROM rfq_items WHERE rfq_id = ?";
     db.query(itemsSql, [id], (err, items) => {
       if (err) {
         return res.status(500).json({
@@ -176,34 +199,51 @@ router.post("/", protect, (req, res) => {
 // Update RFQ
 router.put("/:id", protect, (req, res) => {
   const { id } = req.params;
-  const { title, description, deadline, items, assignedVendors } = req.body;
+  const { title, description, deadline, status } = req.body;
   
-  // Update RFQ
-  const updateSql = `
-    UPDATE rfqs 
-    SET title = ?, description = ?, deadline = ?
-    WHERE id = ?
-  `;
-  
-  db.query(updateSql, [title, description, deadline, id], (err, result) => {
-    if (err) {
-      return res.status(500).json({
-        success: false,
-        error: err.message,
-      });
+  // Get existing RFQ
+  const getSql = "SELECT * FROM rfqs WHERE id = ?";
+  db.query(getSql, [id], (getErr, getResults) => {
+    if (getErr) {
+      return res.status(500).json({ success: false, error: getErr.message });
     }
     
-    if (result.affectedRows === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "RFQ not found",
-      });
+    if (getResults.length === 0) {
+      return res.status(404).json({ success: false, message: "RFQ not found" });
     }
     
-    res.status(200).json({
-      success: true,
-      message: "RFQ updated successfully",
-    });
+    const rfq = getResults[0];
+    
+    // Update RFQ
+    const updateSql = `
+      UPDATE rfqs 
+      SET title = ?, description = ?, deadline = ?, status = ?
+      WHERE id = ?
+    `;
+    
+    db.query(
+      updateSql, 
+      [
+        title || rfq.title, 
+        description || rfq.description, 
+        deadline || rfq.deadline, 
+        status || rfq.status, 
+        id
+      ], 
+      (err, result) => {
+        if (err) {
+          return res.status(500).json({
+            success: false,
+            error: err.message,
+          });
+        }
+        
+        res.status(200).json({
+          success: true,
+          message: "RFQ updated successfully",
+        });
+      }
+    );
   });
 });
 

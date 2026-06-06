@@ -68,6 +68,10 @@ class ApiService {
     return this.request("/rfqs");
   }
 
+  static async getRFQById(id) {
+    return this.request(`/rfqs/${id}`);
+  }
+
   static async createRFQ(rfqData) {
     return this.request("/rfqs", {
       method: "POST",
@@ -120,6 +124,10 @@ class ApiService {
     return this.request("/invoices");
   }
 
+  static async getInvoiceById(id) {
+    return this.request(`/invoices/${id}`);
+  }
+
   static async createInvoice(invoiceData) {
     return this.request("/invoices", {
       method: "POST",
@@ -142,6 +150,12 @@ class ApiService {
     return this.request("/logs", {
       method: "POST",
       body: JSON.stringify(logData),
+    });
+  }
+
+  static async seedDatabase() {
+    return this.request("/seed", {
+      method: "POST",
     });
   }
 }

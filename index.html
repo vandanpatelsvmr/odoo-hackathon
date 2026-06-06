@@ -5,6 +5,97 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>VendorBridge - Procurement & Vendor Management ERP</title>
   <link rel="stylesheet" href="styles.css">
+  <style>
+    .user-profile {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 6px 12px;
+      background: var(--bg-secondary);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      position: relative;
+      cursor: pointer;
+    }
+
+    .profile-dropdown {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      width: 150px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: var(--shadow-lg);
+      margin-top: 8px;
+      display: none;
+      z-index: 1000;
+      padding: 8px;
+    }
+
+    .profile-dropdown.active {
+      display: block;
+    }
+
+    .logout-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: none;
+      border: none;
+      color: var(--danger);
+      font-weight: 500;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: background 0.2s;
+    }
+
+    .logout-btn:hover {
+      background: rgba(239, 68, 68, 0.1);
+    }
+
+    /* Global Loader */
+    .global-loader {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      color: white;
+      backdrop-filter: blur(2px);
+    }
+
+    .global-loader.active {
+      display: flex;
+    }
+
+    .loader-spinner {
+      width: 50px;
+      height: 50px;
+      border: 5px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: var(--accent);
+      animation: spin 1s ease-in-out infinite;
+      margin-bottom: 15px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loader-text {
+      font-weight: 600;
+      letter-spacing: 1px;
+    }
+  </style>
 </head>
 <body>
 
@@ -121,11 +212,19 @@
           </button>
 
           <!-- User Profile Widget -->
-          <div class="user-profile">
+          <div class="user-profile" id="user-profile-widget">
             <div class="user-avatar" id="avatar-letter">RS</div>
             <div class="user-details">
               <span class="user-name" id="profile-name">Rohan Sharma</span>
               <span class="user-role-badge" id="profile-role">Procurement Officer</span>
+            </div>
+            <div class="profile-dropdown" id="profile-dropdown">
+              <button id="logout-btn" class="logout-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:16px; height:16px;">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                Logout
+              </button>
             </div>
           </div>
         </div>
@@ -178,7 +277,7 @@
         <div class="form-group">
           <label for="signup-role">Request Account Role</label>
           <select id="signup-role" class="form-control">
-            <option value="officer">Procurement Officer</option>
+            <option value="procurement_officer">Procurement Officer</option>
             <option value="vendor">Vendor (Supplier)</option>
             <option value="manager">Approver (Manager)</option>
           </select>
@@ -215,6 +314,12 @@
   <!-- Dynamic Notification Toasts -->
   <div id="toast-container"></div>
 
+  <!-- Global Loader -->
+  <div id="global-loader" class="global-loader">
+    <div class="loader-spinner"></div>
+    <div class="loader-text">Processing...</div>
+  </div>
+
   <!-- General Modal Overlay (Used for Email Simulation, PDF details, etc.) -->
   <div id="modal-overlay" class="modal-overlay">
     <div class="modal-box" id="modal-box">
@@ -232,6 +337,7 @@
 
   <!-- Script Declarations -->
   <script src="seed-data.js"></script>
+  <script src="api.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
